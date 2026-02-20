@@ -153,11 +153,6 @@
         ></textarea>
       </div>
     </section>
-
-    <div class="actions">
-      <button class="btn-secondary" type="button">Cancel</button>
-      <button class="btn-primary" type="button">Save Profile</button>
-    </div>
   </div>
 </main>
 
