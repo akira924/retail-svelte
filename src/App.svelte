@@ -34,6 +34,13 @@
     workEntries = workEntries.filter((_, i) => i !== index);
   }
 
+  function getWorkExperienceSummary(): string {
+    return workEntries
+      .filter(e => e.company || e.date)
+      .map(e => `${e.company}: ${e.date}`)
+      .join('\n');
+  }
+
   let educationEntries = $state<EducationEntry[]>(saved?.educationEntries ?? [
     { degree: '', date: '', institution: '', location: '' },
   ]);
@@ -52,6 +59,7 @@
   const OPENAI_MODEL = import.meta.env.VITE_OPENAI_MODEL as string;
 
   let isChecking = $state(false);
+  let isGeneratingSummary = $state(false);
   let eligibilityResult = $state<boolean | null>(null);
 
   async function checkEligibility() {
@@ -102,6 +110,62 @@ ${jobDescription}`;
       eligibilityResult = result.eligible;
     } finally {
       isChecking = false;
+    }
+  }
+
+  async function generateSummary() {
+    isGeneratingSummary = true;
+    try {
+      const career = getWorkExperienceSummary();
+      const prompt = `You are an expert resume writer and career consultant.
+Task: Based on the job description and career provided below, generate a professional summary that would be an ideal fit for the company and role.
+
+Here is my brief career.
+${career}
+
+Job Description:
+${jobDescription}
+
+Guidelines:
+
+1. Formatting:
+- Do not include headers, job titles, or company names in the summary.
+- Write the summary as a continuous paragraph, without bullet points or indentation. Sentences should flow naturally and be concise.
+
+2. ATS Compatibility:
+- Use proper keywords from the job description.
+- Avoid non-standard symbols or unnecessary formatting that could confuse ATS systems, except for technical terms like "CI/CD" or "T-SQL".
+
+3. Tone & Style:
+- The summary should be professional, clear, and succinct.
+- Tailor the language to align with the responsibilities and qualifications listed in the job description.
+
+Output: Only provide the generated summary, nothing else.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      const data = await response.json();
+      const summary = data.choices[0].message.content;
+      console.log(summary);
+    } finally {
+      isGeneratingSummary = false;
+    }
+  }
+
+  async function handleGenerate() {
+    await checkEligibility();
+    if (eligibilityResult === true) {
+      await generateSummary();
     }
   }
 
@@ -264,8 +328,8 @@ ${jobDescription}`;
         ></textarea>
       </div>
       <div class="generate-row">
-        <button class="btn-generate" type="button" onclick={checkEligibility} disabled={isChecking}>
-          {isChecking ? 'Checking …' : 'Generate'}
+        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingSummary}>
+          {isChecking ? 'Checking …' : isGeneratingSummary ? 'Generating …' : 'Generate'}
         </button>
       </div>
     </section>
