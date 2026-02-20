@@ -1,6 +1,6 @@
 <script lang="ts">
-  type WorkEntry = { company: string; date: string };
-  type EducationEntry = { degree: string; date: string };
+  type WorkEntry = { company: string; date: string; location: string };
+  type EducationEntry = { degree: string; date: string; institution: string; location: string };
 
   const STORAGE_KEY = 'profile-form-data';
 
@@ -21,13 +21,13 @@
   let location = $state<string>(saved?.location ?? '');
 
   let workEntries = $state<WorkEntry[]>(saved?.workEntries ?? [
-    { company: '', date: '' },
-    { company: '', date: '' },
-    { company: '', date: '' },
+    { company: '', date: '', location: '' },
+    { company: '', date: '', location: '' },
+    { company: '', date: '', location: '' },
   ]);
 
   function addWork() {
-    workEntries = [...workEntries, { company: '', date: '' }];
+    workEntries = [...workEntries, { company: '', date: '', location: '' }];
   }
 
   function removeWork(index: number) {
@@ -35,11 +35,11 @@
   }
 
   let educationEntries = $state<EducationEntry[]>(saved?.educationEntries ?? [
-    { degree: '', date: '' },
+    { degree: '', date: '', institution: '', location: '' },
   ]);
 
   function addEducation() {
-    educationEntries = [...educationEntries, { degree: '', date: '' }];
+    educationEntries = [...educationEntries, { degree: '', date: '', institution: '', location: '' }];
   }
 
   function removeEducation(index: number) {
@@ -118,6 +118,10 @@
             <label for="work-date-{i}">Date</label>
             <input id="work-date-{i}" type="text" bind:value={entry.date} placeholder="e.g. Jan 2020 – Mar 2023" />
           </div>
+          <div class="field">
+            <label for="work-location-{i}">Location</label>
+            <input id="work-location-{i}" type="text" bind:value={entry.location} placeholder="City, State / Remote" />
+          </div>
           <button
             class="btn-remove"
             type="button"
@@ -141,23 +145,35 @@
         </button>
       </div>
       {#each educationEntries as entry, i}
-        <div class="row-grid row-divider">
-          <div class="row-label">Entry {i + 1}</div>
-          <div class="field">
-            <label for="degree-{i}">Degree</label>
-            <input id="degree-{i}" type="text" bind:value={entry.degree} placeholder="Bachelor of Science" />
+        <div class="row-edu row-divider">
+          <div class="row-edu-top">
+            <div class="row-label">Entry {i + 1}</div>
+            <button
+              class="btn-remove"
+              type="button"
+              title="Remove entry"
+              disabled={educationEntries.length === 1}
+              on:click={() => removeEducation(i)}
+            >×</button>
           </div>
-          <div class="field">
-            <label for="edu-date-{i}">Date</label>
-            <input id="edu-date-{i}" type="text" bind:value={entry.date} placeholder="e.g. May 2018" />
+          <div class="edu-fields">
+            <div class="field">
+              <label for="degree-{i}">Degree</label>
+              <input id="degree-{i}" type="text" bind:value={entry.degree} placeholder="Bachelor of Science" />
+            </div>
+            <div class="field">
+              <label for="edu-date-{i}">Date</label>
+              <input id="edu-date-{i}" type="text" bind:value={entry.date} placeholder="e.g. May 2018" />
+            </div>
+            <div class="field">
+              <label for="edu-institution-{i}">Institution</label>
+              <input id="edu-institution-{i}" type="text" bind:value={entry.institution} placeholder="University of Example" />
+            </div>
+            <div class="field">
+              <label for="edu-location-{i}">Location</label>
+              <input id="edu-location-{i}" type="text" bind:value={entry.location} placeholder="City, State / Country" />
+            </div>
           </div>
-          <button
-            class="btn-remove"
-            type="button"
-            title="Remove entry"
-            disabled={educationEntries.length === 1}
-            on:click={() => removeEducation(i)}
-          >×</button>
         </div>
       {/each}
     </section>
@@ -264,10 +280,27 @@
 
   .row-grid {
     display: grid;
-    grid-template-columns: 90px 1fr 1fr 32px;
+    grid-template-columns: 90px 1fr 1fr 1fr 32px;
     gap: 0.75rem 1.25rem;
     align-items: end;
     padding: 0.75rem 0;
+  }
+
+  .row-edu {
+    padding: 0.75rem 0;
+  }
+
+  .row-edu-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.6rem;
+  }
+
+  .edu-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem 1.25rem;
   }
 
   .row-divider + .row-divider {
@@ -429,6 +462,10 @@
     .row-label {
       grid-column: 1 / -1;
       padding-bottom: 0;
+    }
+
+    .edu-fields {
+      grid-template-columns: 1fr;
     }
   }
 </style>
