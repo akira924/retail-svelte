@@ -2,17 +2,29 @@
   type WorkEntry = { company: string; date: string };
   type EducationEntry = { degree: string; date: string };
 
-  let firstName = '';
-  let lastName = '';
-  let email = '';
-  let phone = '';
-  let location = '';
+  const STORAGE_KEY = 'profile-form-data';
 
-  let workEntries: WorkEntry[] = [
+  function loadSaved() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  }
+
+  const saved = loadSaved();
+
+  let firstName = $state<string>(saved?.firstName ?? '');
+  let lastName = $state<string>(saved?.lastName ?? '');
+  let email = $state<string>(saved?.email ?? '');
+  let phone = $state<string>(saved?.phone ?? '');
+  let location = $state<string>(saved?.location ?? '');
+
+  let workEntries = $state<WorkEntry[]>(saved?.workEntries ?? [
     { company: '', date: '' },
     { company: '', date: '' },
     { company: '', date: '' },
-  ];
+  ]);
 
   function addWork() {
     workEntries = [...workEntries, { company: '', date: '' }];
@@ -22,9 +34,9 @@
     workEntries = workEntries.filter((_, i) => i !== index);
   }
 
-  let educationEntries: EducationEntry[] = [
+  let educationEntries = $state<EducationEntry[]>(saved?.educationEntries ?? [
     { degree: '', date: '' },
-  ];
+  ]);
 
   function addEducation() {
     educationEntries = [...educationEntries, { degree: '', date: '' }];
@@ -34,7 +46,20 @@
     educationEntries = educationEntries.filter((_, i) => i !== index);
   }
 
-  let jobDescription = '';
+  let jobDescription = $state<string>(saved?.jobDescription ?? '');
+
+  $effect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      firstName,
+      lastName,
+      email,
+      phone,
+      location,
+      workEntries: $state.snapshot(workEntries),
+      educationEntries: $state.snapshot(educationEntries),
+      jobDescription,
+    }));
+  });
 </script>
 
 <main>
