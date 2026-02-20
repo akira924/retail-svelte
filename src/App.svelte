@@ -34,6 +34,13 @@
     workEntries = workEntries.filter((_, i) => i !== index);
   }
 
+  function getWorkExperienceSummary(): string {
+    return workEntries
+      .filter(e => e.company || e.date)
+      .map(e => `${e.company}: ${e.date}`)
+      .join('\n');
+  }
+
   let educationEntries = $state<EducationEntry[]>(saved?.educationEntries ?? [
     { degree: '', date: '', institution: '', location: '' },
   ]);
