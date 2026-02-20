@@ -46,7 +46,64 @@
     educationEntries = educationEntries.filter((_, i) => i !== index);
   }
 
-  let jobDescription = $state<string>(saved?.jobDescription ?? '');
+  let jobDescription = $state<string>('');
+
+  const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string;
+  const OPENAI_MODEL = import.meta.env.VITE_OPENAI_MODEL as string;
+
+  let isChecking = $state(false);
+  let eligibilityResult = $state<boolean | null>(null);
+
+  async function checkEligibility() {
+    eligibilityResult = null;
+    isChecking = true;
+    try {
+      const prompt = `You are a job eligibility validator.
+Your task is to determine whether a resume should be generated for a given Job Description (JD).
+
+Decision Rules (apply in order):
+1. If the JD requires any type of clearance (e.g., security clearance, government clearance, public trust), set "eligible" to false.
+2. If the JD requires on-site or hybrid work, set "eligible" to false.
+3. If the JD specifies a required candidate location:
+   - Set "eligible" to true ONLY if the required location exactly matches the candidate's location.
+   - Otherwise, set "eligible" to false.
+4. If none of the above conditions apply, set "eligible" to true.
+
+Output Rules:
+- Respond ONLY in valid JSON.
+- Do NOT add explanations outside the JSON.
+
+JSON schema:
+{
+  "eligible": boolean
+}
+
+Candidate location:
+${location}
+
+Job Description:
+${jobDescription}`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+        }),
+      });
+
+      const data = await response.json();
+      const result = JSON.parse(data.choices[0].message.content);
+      eligibilityResult = result.eligible;
+    } finally {
+      isChecking = false;
+    }
+  }
 
   $effect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -57,10 +114,23 @@
       location,
       workEntries: $state.snapshot(workEntries),
       educationEntries: $state.snapshot(educationEntries),
-      jobDescription,
     }));
   });
 </script>
+
+{#if eligibilityResult !== null}
+  <div class="alert-banner {eligibilityResult ? 'alert-eligible' : 'alert-ineligible'}" role="alert">
+    <span class="alert-icon">{eligibilityResult ? '✓' : '✕'}</span>
+    <span class="alert-text">
+      {#if eligibilityResult}
+        You appear to meet the requirements for this position. You're good to proceed.
+      {:else}
+        This position may not be a match based on your profile or the job's requirements.
+      {/if}
+    </span>
+    <button class="alert-close" type="button" aria-label="Dismiss" onclick={() => eligibilityResult = null}>×</button>
+  </div>
+{/if}
 
 <main>
   <div class="page">
@@ -103,7 +173,7 @@
           <span class="section-badge">2</span>
           Work Experience
         </h2>
-        <button class="btn-add" type="button" on:click={addWork}>
+        <button class="btn-add" type="button" onclick={addWork}>
           <span class="btn-add-icon">+</span> Add Position
         </button>
       </div>
@@ -127,7 +197,7 @@
             type="button"
             title="Remove position"
             disabled={workEntries.length === 1}
-            on:click={() => removeWork(i)}
+            onclick={() => removeWork(i)}
           >×</button>
         </div>
       {/each}
@@ -140,7 +210,7 @@
           <span class="section-badge">3</span>
           Education
         </h2>
-        <button class="btn-add" type="button" on:click={addEducation}>
+        <button class="btn-add" type="button" onclick={addEducation}>
           <span class="btn-add-icon">+</span> Add Entry
         </button>
       </div>
@@ -153,7 +223,7 @@
               type="button"
               title="Remove entry"
               disabled={educationEntries.length === 1}
-              on:click={() => removeEducation(i)}
+              onclick={() => removeEducation(i)}
             >×</button>
           </div>
           <div class="edu-fields">
@@ -192,6 +262,11 @@
           placeholder="Paste or write the job description here…"
           rows="8"
         ></textarea>
+      </div>
+      <div class="generate-row">
+        <button class="btn-generate" type="button" onclick={checkEligibility} disabled={isChecking}>
+          {isChecking ? 'Checking …' : 'Generate'}
+        </button>
       </div>
     </section>
   </div>
@@ -444,6 +519,119 @@
   .btn-remove:disabled {
     opacity: 0.3;
     cursor: not-allowed;
+  }
+
+  .generate-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1.25rem;
+  }
+
+  .btn-generate {
+    height: 42px;
+    padding: 0 2rem;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #fff;
+    background: #4f46e5;
+    border: 1px solid #4338ca;
+    cursor: pointer;
+    transition: background 0.18s, box-shadow 0.18s;
+    letter-spacing: 0.01em;
+  }
+
+  .btn-generate:hover {
+    background: #4338ca;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.28);
+  }
+
+  .btn-generate:active {
+    background: #3730a3;
+  }
+
+  .btn-generate:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  /* Eligibility alert banner */
+  .alert-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    animation: slideDown 0.25s ease;
+  }
+
+  @keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0);     opacity: 1; }
+  }
+
+  .alert-eligible {
+    background: #f0fdf4;
+    border-bottom: 1px solid #bbf7d0;
+    color: #166534;
+  }
+
+  .alert-ineligible {
+    background: #fff7ed;
+    border-bottom: 1px solid #fed7aa;
+    color: #9a3412;
+  }
+
+  .alert-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .alert-eligible .alert-icon {
+    background: #dcfce7;
+    color: #16a34a;
+  }
+
+  .alert-ineligible .alert-icon {
+    background: #ffedd5;
+    color: #ea580c;
+  }
+
+  .alert-text {
+    flex: 1;
+  }
+
+  .alert-close {
+    height: auto;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 1.1rem;
+    font-weight: 400;
+    line-height: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  .alert-close:hover {
+    opacity: 1;
   }
 
   @media (max-width: 560px) {
