@@ -1,5 +1,5 @@
 <script lang="ts">
-  type WorkEntry = { company: string; date: string; location: string };
+  type WorkEntry = { company: string; date: string; location: string; bulletPoints: number };
   type EducationEntry = { degree: string; date: string; institution: string; location: string };
 
   const STORAGE_KEY = 'profile-form-data';
@@ -21,13 +21,13 @@
   let location = $state<string>(saved?.location ?? '');
 
   let workEntries = $state<WorkEntry[]>(saved?.workEntries ?? [
-    { company: '', date: '', location: '' },
-    { company: '', date: '', location: '' },
-    { company: '', date: '', location: '' },
+    { company: '', date: '', location: '', bulletPoints: 5 },
+    { company: '', date: '', location: '', bulletPoints: 5 },
+    { company: '', date: '', location: '', bulletPoints: 5 },
   ]);
 
   function addWork() {
-    workEntries = [...workEntries, { company: '', date: '', location: '' }];
+    workEntries = [...workEntries, { company: '', date: '', location: '', bulletPoints: 5 }];
   }
 
   function removeWork(index: number) {
@@ -316,6 +316,10 @@ Output ONLY the Technical Skills section.`;
             <label for="work-location-{i}">Location</label>
             <input id="work-location-{i}" type="text" bind:value={entry.location} placeholder="City, State / Remote" />
           </div>
+          <div class="field field--bullets">
+            <label for="work-bullets-{i}">Bullets</label>
+            <input id="work-bullets-{i}" type="number" bind:value={entry.bulletPoints} min="2" max="12" />
+          </div>
           <button
             class="btn-remove"
             type="button"
@@ -479,10 +483,15 @@ Output ONLY the Technical Skills section.`;
 
   .row-grid {
     display: grid;
-    grid-template-columns: 90px 1fr 1fr 1fr 32px;
+    grid-template-columns: 90px 1fr 1fr 1fr 68px 32px;
     gap: 0.75rem 1.25rem;
     align-items: end;
     padding: 0.75rem 0;
+  }
+
+  .field--bullets input {
+    text-align: center;
+    padding: 0 0.4rem;
   }
 
   .row-edu {
@@ -768,7 +777,7 @@ Output ONLY the Technical Skills section.`;
     }
 
     .row-grid {
-      grid-template-columns: 1fr 1fr 32px;
+      grid-template-columns: 1fr 1fr 68px 32px;
     }
 
     .row-label {
