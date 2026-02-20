@@ -33,6 +33,8 @@
   function removeEducation(index: number) {
     educationEntries = educationEntries.filter((_, i) => i !== index);
   }
+
+  let jobDescription = '';
 </script>
 
 <main>
@@ -133,6 +135,23 @@
           >×</button>
         </div>
       {/each}
+    </section>
+
+    <!-- Section 4: Job Description -->
+    <section class="card">
+      <h2 class="section-title">
+        <span class="section-badge">4</span>
+        Job Description
+      </h2>
+      <div class="field">
+        <label for="jobDescription">Describe the role or position you are applying for</label>
+        <textarea
+          id="jobDescription"
+          bind:value={jobDescription}
+          placeholder="Paste or write the job description here…"
+          rows="8"
+        ></textarea>
+      </div>
     </section>
 
     <div class="actions">
@@ -276,6 +295,32 @@
   }
 
   input:focus {
+    border-color: #4f46e5;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  }
+
+  textarea {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0.65rem 0.75rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: #111827;
+    background: #f9fafb;
+    resize: vertical;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    line-height: 1.55;
+  }
+
+  textarea::placeholder {
+    color: #9ca3af;
+  }
+
+  textarea:focus {
     border-color: #4f46e5;
     background: #fff;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
