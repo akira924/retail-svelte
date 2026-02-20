@@ -321,14 +321,6 @@
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
   }
 
-  /* Actions */
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
-  }
-
   button {
     height: 40px;
     padding: 0 1.4rem;
@@ -338,27 +330,6 @@
     cursor: pointer;
     transition: background 0.18s, border-color 0.18s;
     border: 1px solid transparent;
-  }
-
-  .btn-primary {
-    background: #4f46e5;
-    color: #fff;
-    border-color: #4f46e5;
-  }
-
-  .btn-primary:hover {
-    background: #4338ca;
-    border-color: #4338ca;
-  }
-
-  .btn-secondary {
-    background: #fff;
-    color: #374151;
-    border-color: #d1d5db;
-  }
-
-  .btn-secondary:hover {
-    background: #f3f4f6;
   }
 
   .btn-add {
