@@ -61,6 +61,7 @@
   let isChecking = $state(false);
   let isGeneratingSummary = $state(false);
   let isGeneratingTechnicalSkills = $state(false);
+  let isGeneratingExperience = $state(false);
   let eligibilityResult = $state<boolean | null>(null);
 
   async function checkEligibility() {
@@ -216,8 +217,88 @@ Output ONLY the Technical Skills section.`;
       const data = await response.json();
       const technicalSkills = data.choices[0].message.content;
       console.log(technicalSkills);
+      return technicalSkills;
     } finally {
       isGeneratingTechnicalSkills = false;
+    }
+  }
+
+  async function generateWorkExperience(technicalSkills: string) {
+    isGeneratingExperience = true;
+    try {
+      for (const entry of workEntries) {
+        const prompt = `You are an expert resume writer and ATS optimization specialist.
+TASK: Generate professional resume experience sentences tailored to the provided job description and company information.
+
+INPUT:
+Company Name: ${entry.company}
+Work Period: ${entry.date}
+Required Number of Sentences: ${entry.bulletPoints}
+
+Technical Skills:
+${technicalSkills}
+
+JOB DESCRIPTION:
+${jobDescription}
+
+RULES:
+1. EXPERIENCE GENERATION
+- Generate exactly ${entry.bulletPoints} experience sentences.
+
+Technology Usage:
+- Identify key technologies from the job description.
+- Use only technologies that were publicly available during the work period.
+- Prioritize technologies strongly relevant to the job description.
+
+Company and Industry Alignment:
+- At least two sentences must clearly reflect domain or industry alignment with the company's business goals or sector.
+
+Sentence Requirements:
+- Each sentence must be between 150 and 220 characters.
+- Each sentence must contain detailed technical contributions and measurable engineering responsibilities.
+- Sentences must be resume-style accomplishments.
+- Do not use first-person or third-person pronouns.
+
+2. FORMATTING RULES
+- Do not include bullet symbols.
+- Do not include headers or titles.
+- Do not include company names or job titles in the output.
+- Each sentence must be on a new line.
+- No extra blank lines.
+- Each sentence must end with a period.
+
+3. ATS OPTIMIZATION
+- Use ATS-friendly technical keywords.
+- Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
+
+4. FINAL VALIDATION
+Ensure:
+- Exact number of sentences generated.
+- Every sentence meets the character limit.
+- Output contains only the sentences.
+
+OUTPUT FORMAT:
+Return ONLY the sentences separated by line breaks.
+Do not include explanations or commentary.`;
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: OPENAI_MODEL,
+            messages: [{ role: 'user', content: prompt }],
+          }),
+        });
+
+        const data = await response.json();
+        const bullets = data.choices[0].message.content;
+        console.log(`[${entry.company} | ${entry.date}]\n${bullets}`);
+      }
+    } finally {
+      isGeneratingExperience = false;
     }
   }
 
@@ -225,7 +306,10 @@ Output ONLY the Technical Skills section.`;
     await checkEligibility();
     if (eligibilityResult === true) {
       await generateSummary();
-      await generateTechnicalSkills();
+      const technicalSkills = await generateTechnicalSkills();
+      if (technicalSkills) {
+        await generateWorkExperience(technicalSkills);
+      }
     }
   }
 
@@ -392,8 +476,8 @@ Output ONLY the Technical Skills section.`;
         ></textarea>
       </div>
       <div class="generate-row">
-        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingSummary || isGeneratingTechnicalSkills}>
-          {isChecking ? 'Checking …' : isGeneratingSummary ? 'Generating …' : isGeneratingTechnicalSkills ? 'Building Skills …' : 'Generate'}
+        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingSummary || isGeneratingTechnicalSkills || isGeneratingExperience}>
+          {isChecking ? 'Checking …' : isGeneratingSummary ? 'Generating …' : isGeneratingTechnicalSkills ? 'Building Skills …' : isGeneratingExperience ? 'Writing Experience …' : 'Generate'}
         </button>
       </div>
     </section>
