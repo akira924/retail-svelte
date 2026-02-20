@@ -78,13 +78,22 @@ Decision Rules (apply in order):
 4. If none of the above conditions apply, set "eligible" to true.
 
 Output Rules:
+1. If eligible is true:
+  - Clean up job description by removing these kinds of parts and sections and return the cleaned up job description in the following JSON schema.
+      - relocation, travel expectations or physical demands
+      - salary, bonuses, perks, or benefits
+      JSON schema:
+      {
+         "eligible": Boolean,
+         "jd": String
+      }
+2. If eligible is false:
+      JSON schema:
+      {
+         "eligible": Boolean
+      }
 - Respond ONLY in valid JSON.
 - Do NOT add explanations outside the JSON.
-
-JSON schema:
-{
-  "eligible": boolean
-}
 
 Candidate location:
 ${location}
@@ -108,6 +117,10 @@ ${jobDescription}`;
       const data = await response.json();
       const result = JSON.parse(data.choices[0].message.content);
       eligibilityResult = result.eligible;
+      if (result.eligible && result.jd) {
+        jobDescription = result.jd;
+        console.log('Cleaned JD:', result.jd);
+      }
     } finally {
       isChecking = false;
     }
