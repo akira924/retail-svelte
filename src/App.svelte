@@ -60,6 +60,7 @@
 
   let isChecking = $state(false);
   let isGeneratingSummary = $state(false);
+  let isGeneratingTechnicalSkills = $state(false);
   let eligibilityResult = $state<boolean | null>(null);
 
   async function checkEligibility() {
@@ -175,10 +176,56 @@ Output: Only provide the generated summary, nothing else.`;
     }
   }
 
+  async function generateTechnicalSkills() {
+    isGeneratingTechnicalSkills = true;
+    try {
+      const prompt = `You are an expert resume writer.
+Task: Generate a professional Technical Skills section based on the following job description.
+
+Guidelines:
+1. List at least 30-35 technical skills relevant to the job or related fields.
+2. Include technologies explicitly mentioned in the job description as well as related skills.
+3. Categorize skills in resume style with one line per category.
+4. Format:
+   **Category1:** Skill1, Skill2, Skill3
+   **Category2:** Skill1, Skill2, Skill3
+   ...
+5. Ensure ATS compatibility:
+   - Use proper keywords
+   - Avoid special symbols or unnecessary formatting
+   - Keep technical symbols like '/' or '-' when appropriate (e.g., "CI/CD", "T-SQL")
+6. Double-check that all technologies in the job description are included.
+
+Job Description:
+${jobDescription}
+
+Output ONLY the Technical Skills section.`;
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+
+      const data = await response.json();
+      const technicalSkills = data.choices[0].message.content;
+      console.log(technicalSkills);
+    } finally {
+      isGeneratingTechnicalSkills = false;
+    }
+  }
+
   async function handleGenerate() {
     await checkEligibility();
     if (eligibilityResult === true) {
       await generateSummary();
+      await generateTechnicalSkills();
     }
   }
 
@@ -341,8 +388,8 @@ Output: Only provide the generated summary, nothing else.`;
         ></textarea>
       </div>
       <div class="generate-row">
-        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingSummary}>
-          {isChecking ? 'Checking …' : isGeneratingSummary ? 'Generating …' : 'Generate'}
+        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingSummary || isGeneratingTechnicalSkills}>
+          {isChecking ? 'Checking …' : isGeneratingSummary ? 'Generating …' : isGeneratingTechnicalSkills ? 'Building Skills …' : 'Generate'}
         </button>
       </div>
     </section>
