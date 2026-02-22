@@ -68,7 +68,7 @@
     eligibilityResult = null;
     isChecking = true;
     try {
-      const prompt = `You are a job eligibility validator.
+      const systemPrompt = `You are a job eligibility validator.
 Your task is to determine whether a resume should be generated for a given Job Description (JD).
 
 Decision Rules (apply in order):
@@ -95,13 +95,14 @@ Output Rules:
          "eligible": Boolean
       }
 - Respond ONLY in valid JSON.
-- Do NOT add explanations outside the JSON.
+- Do NOT add explanations outside the JSON.`.trim();
 
+      const userPrompt = `
 Candidate location:
 ${location}
 
 Job Description:
-${jobDescription}`;
+${jobDescription}`.trim();
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -111,7 +112,10 @@ ${jobDescription}`;
         },
         body: JSON.stringify({
           model: OPENAI_MODEL,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
           response_format: { type: 'json_object' },
         }),
       });
