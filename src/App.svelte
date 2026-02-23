@@ -59,19 +59,21 @@
   const OPENAI_MODEL = import.meta.env.VITE_OPENAI_MODEL as string;
 
   let isChecking = $state(false);
-  let isGeneratingSummary = $state(false);
   let isGeneratingTechnicalSkills = $state(false);
   let isGeneratingExperience = $state(false);
   let eligibilityResult = $state<boolean | null>(null);
 
-  async function checkEligibility() {
+  async function checkEligibilityAndGenerateSummary() {
     eligibilityResult = null;
     isChecking = true;
     try {
-      const systemPrompt = `You are a job eligibility validator.
-Your task is to determine whether a resume should be generated for a given Job Description (JD).
+      const career = getWorkExperienceSummary();
+      const systemPrompt = `You are a job eligibility validator and expert resume writer.
+Your tasks are to:
+1) Determine whether a resume should be generated for a given Job Description (JD).
+2) If eligible, generate a professional summary and job titles based on the JD and the candidate's career.
 
-Decision Rules (apply in order):
+ELIGIBILITY RULES (apply in order):
 1. If the JD requires any type of clearance (e.g., security clearance, government clearance, public trust), set "eligible" to false.
 2. If the JD requires on-site or hybrid work,
   - Set "eligible" to true ONLY if there is possibility to work fully remote.
@@ -81,15 +83,33 @@ Decision Rules (apply in order):
   - Otherwise, set "eligible" to false.
 4. If none of the above conditions apply, set "eligible" to true.
 
+SUMMARY RULES (only when eligible is true):
+- Length: 3–4 sentences only
+- Tone: professional, confident, concise
+- Optimization: ATS-friendly (use relevant keywords from the job description)
+- Alignment: tailor directly to the provided job description
+- Perspective: third person, no personal pronouns
+- Formatting: plain text, no bullet points, no headings
+
+JOB TITLE RULES (only when eligible is true):
+- The job titles should be 2-4 words long.
+- The job titles should be appropriate for the job description.
+- The job titles should be simple and concise, but common in the industry.
+
 Output Rules: Respond ONLY in valid JSON.
-  JSON schema:
-  {
-      "eligible": Boolean
-  }`;
+JSON schema:
+{
+  "eligible": Boolean,
+  "summary": "Summary text or null if not eligible",
+  "jobTitles": ["Job Title1", "Job Title2", ...] or null if not eligible
+}`;
 
       const userPrompt = `
 Candidate location:
 ${location}
+
+Here is my brief career.
+${career}
 
 Job Description:
 ${jobDescription}`;
@@ -113,71 +133,12 @@ ${jobDescription}`;
       const data = await response.json();
       const result = JSON.parse(data.choices[0].message.content);
       eligibilityResult = result.eligible;
+      if (result.eligible) {
+        console.log(JSON.stringify({ summary: result.summary, jobTitles: result.jobTitles }, null, 2));
+      }
+      return result;
     } finally {
       isChecking = false;
-    }
-  }
-
-  async function generateSummary() {
-    isGeneratingSummary = true;
-    try {
-      const career = getWorkExperienceSummary();
-      const systemPrompt = `You are an expert resume writer and ATS optimization specialist.
-Your tasks are to:
-1) Generate a professional summary that would be an ideal fit for the company and the role based on the job description and career provided.
-2) Generate job titles for each career based on the job description and career provided.
-
-RULES FOR SUMMARY:
-- Length: 3–4 sentences only
-- Tone: professional, confident, concise
-- Optimization: ATS-friendly (use relevant keywords from the job description)
-- Alignment: tailor directly to the provided job description
-- Perspective: third person, no personal pronouns
-- Formatting: plain text, no bullet points, no headings
-
-RULES FOR JOB TITLE:
-- The job titles should be 2-4 words long.
-- The job titles should be appropriate for the job description.
-- The job titles should be simple and concise, but common in the industry.
-
-Input:
-You will receive a job description and a candidate's brief career.
-
-Output:
-Return ONLY the summary text as JSON
-JSON schema:
-{
-  "summary": "Summary text",
-  "jobTitles": ["Job Title1", "Job Title2", "Job Title3"]
-}`;
-
-      const userPrompt = `
-Here is my brief career.
-${career}
-
-Job Description:
-${jobDescription}`;
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: OPENAI_MODEL,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-      });
-
-      const data = await response.json();
-      const summary = data.choices[0].message.content;
-      console.log(summary);
-    } finally {
-      isGeneratingSummary = false;
     }
   }
 
@@ -246,7 +207,7 @@ Your task is to generate professional resume experience sentences based on the p
 
 GUIDELINES:
 1. Write in third-person only without the name, and he or she.
-2. Each sentence must be 150-250 characters and contain detailed, technically rich descriptions of your role, specific contributions, and technologies used.
+2. Each sentence must be 150-220 characters and contain detailed, technically rich descriptions of your role, specific contributions, and technologies used.
 3. Each experience must reference company industry relevance.
 4. Each sentence must end with a period.
 5. Each sentence only contain the content with no headers, job titles, or company names.
@@ -255,9 +216,9 @@ GUIDELINES:
 8. No sentence may be vague or generic
 9. Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
 10. All technologies mentioned in the job description must be included and used correctly in the sentences.
+10. All technologies are included only after their first version (or alpha release date).
 
-OUTPUT FORMAT:
-Return ONLY the sentences as JSON.
+OUTPUT FORMAT: Return ONLY the sentences as JSON.
 JSON schema:
 {
   "sentences": ["Sentence1", "Sentence2", "Sentence3"],
@@ -296,9 +257,8 @@ ${jobDescription}`;
   }
 
   async function handleGenerate() {
-    await checkEligibility();
-    if (eligibilityResult === true) {
-      await generateSummary();
+    const result = await checkEligibilityAndGenerateSummary();
+    if (result?.eligible === true) {
       const technicalSkills = await generateTechnicalSkills();
       if (technicalSkills) {
         await generateWorkExperience();
@@ -473,8 +433,8 @@ ${jobDescription}`;
         ></textarea>
       </div>
       <div class="generate-row">
-        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingSummary || isGeneratingTechnicalSkills || isGeneratingExperience}>
-          {isChecking ? 'Checking …' : isGeneratingSummary ? 'Generating …' : isGeneratingTechnicalSkills ? 'Building Skills …' : isGeneratingExperience ? 'Writing Experience …' : 'Generate'}
+        <button class="btn-generate" type="button" onclick={handleGenerate}           disabled={isChecking || isGeneratingTechnicalSkills || isGeneratingExperience}>
+          {isChecking ? 'Checking & Generating …' : isGeneratingTechnicalSkills ? 'Building Skills …' : isGeneratingExperience ? 'Writing Experience …' : 'Generate'}
         </button>
       </div>
     </section>
