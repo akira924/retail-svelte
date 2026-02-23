@@ -563,10 +563,6 @@ ${jobDescription}`.trim();
     gap: 1rem 1.25rem;
   }
 
-  .field--full {
-    grid-column: 1 / -1;
-  }
-
   .section-header {
     display: flex;
     align-items: center;
@@ -889,10 +885,6 @@ ${jobDescription}`.trim();
   @media (max-width: 560px) {
     .form-grid {
       grid-template-columns: 1fr;
-    }
-
-    .field--full {
-      grid-column: 1;
     }
 
     .row-grid {
