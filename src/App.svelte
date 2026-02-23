@@ -73,29 +73,19 @@ Your task is to determine whether a resume should be generated for a given Job D
 
 Decision Rules (apply in order):
 1. If the JD requires any type of clearance (e.g., security clearance, government clearance, public trust), set "eligible" to false.
-2. If the JD requires on-site or hybrid work, set "eligible" to false.
+2. If the JD requires on-site or hybrid work,
+  - Set "eligible" to true ONLY if there is possibility to work fully remote.
+  - Otherwise, set "eligible" to false.
 3. If the JD specifies a required candidate location:
-   - Set "eligible" to true ONLY if the required location exactly matches the candidate's location.
-   - Otherwise, set "eligible" to false.
+  - Set "eligible" to true ONLY if the required location exactly matches the candidate's location.
+  - Otherwise, set "eligible" to false.
 4. If none of the above conditions apply, set "eligible" to true.
 
-Output Rules:
-1. If eligible is true:
-  - Clean up job description by removing these kinds of parts and sections and return the cleaned up job description in the following JSON schema.
-      - relocation, travel expectations or physical demands
-      - salary, bonuses, perks, or benefits
-      JSON schema:
-      {
-         "eligible": Boolean,
-         "jd": String
-      }
-2. If eligible is false:
-      JSON schema:
-      {
-         "eligible": Boolean
-      }
-- Respond ONLY in valid JSON.
-- Do NOT add explanations outside the JSON.`.trim();
+Output Rules: Respond ONLY in valid JSON.
+  JSON schema:
+  {
+      "eligible": Boolean
+  }`;
 
       const userPrompt = `
 Candidate location:
@@ -123,10 +113,6 @@ ${jobDescription}`.trim();
       const data = await response.json();
       const result = JSON.parse(data.choices[0].message.content);
       eligibilityResult = result.eligible;
-      if (result.eligible && result.jd) {
-        jobDescription = result.jd;
-        // console.log('Cleaned JD:', result.jd);
-      }
     } finally {
       isChecking = false;
     }
