@@ -148,7 +148,7 @@ Return ONLY the summary text as JSON
 JSON schema:
 {
   "summary": "Summary text",
-  "jobTitles": ["Job Title1", "Job Title2", "Job Title3"]
+  "jobTitles": ["Job Title1", "Job Title2", ...]
 }`;
 
       const userPrompt = `
@@ -246,7 +246,7 @@ Your task is to generate professional resume experience sentences based on the p
 
 GUIDELINES:
 1. Write in third-person only without the name, and he or she.
-2. Each sentence must be 150-250 characters and contain detailed, technically rich descriptions of your role, specific contributions, and technologies used.
+2. Each sentence must be 150-220 characters and contain detailed, technically rich descriptions of your role, specific contributions, and technologies used.
 3. Each experience must reference company industry relevance.
 4. Each sentence must end with a period.
 5. Each sentence only contain the content with no headers, job titles, or company names.
@@ -255,9 +255,9 @@ GUIDELINES:
 8. No sentence may be vague or generic
 9. Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
 10. All technologies mentioned in the job description must be included and used correctly in the sentences.
+10. All technologies are included only after their first version (or alpha release date).
 
-OUTPUT FORMAT:
-Return ONLY the sentences as JSON.
+OUTPUT FORMAT: Return ONLY the sentences as JSON.
 JSON schema:
 {
   "sentences": ["Sentence1", "Sentence2", "Sentence3"],
