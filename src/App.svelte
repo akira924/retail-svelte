@@ -2,6 +2,13 @@
   type WorkEntry = { company: string; date: string; location: string; level: string; bulletPoints: number };
   type EducationEntry = { degree: string; date: string; institution: string; location: string };
   type TechnicalSkillsData = { technicalSkills: { category: string; skills: string[] }[] };
+  type GeneratedWorkExperience = { company: string; date: string; sentences: string[] };
+  type ResumeData = {
+    summary: string;
+    jobTitles: string[];
+    technicalSkills: TechnicalSkillsData;
+    workExperience: GeneratedWorkExperience[];
+  };
 
   const STORAGE_KEY = 'profile-form-data';
 
@@ -62,6 +69,7 @@
   let isGeneratingTechnicalSkills = $state(false);
   let isGeneratingExperience = $state(false);
   let eligibilityResult = $state<boolean | null>(null);
+  let resumeData = $state<ResumeData | null>(null);
 
   async function checkEligibilityAndGenerateSummary() {
     eligibilityResult = null;
@@ -71,15 +79,15 @@
       const systemPrompt = `You are a job eligibility validator and expert resume writer.
 Your tasks are to:
 1) Determine whether a resume should be generated for a given Job Description (JD).
-2) If eligible, generate a professional summary and job titles based on the JD and the candidate's career.
+2) If eligible, generate a professional summary and job title for each position based on the JD and the candidate's career.
 
 ELIGIBILITY RULES (apply in order):
-1. If the JD requires any type of clearance (e.g., security clearance, government clearance, public trust), set "eligible" to false.
+1. If the JD requires any type of clearance, set "eligible" to false.
 2. If the JD requires on-site or hybrid work,
   - Set "eligible" to true ONLY if there is possibility to work fully remote.
   - Otherwise, set "eligible" to false.
 3. If the JD specifies a required candidate location:
-  - Set "eligible" to true ONLY if the required location exactly matches the candidate's location.
+  - Set "eligible" to true ONLY if the required location exactly matches or contains the candidate's location.
   - Otherwise, set "eligible" to false.
 4. If none of the above conditions apply, set "eligible" to true.
 
@@ -92,9 +100,10 @@ SUMMARY RULES (only when eligible is true):
 - Formatting: plain text, no bullet points, no headings
 
 JOB TITLE RULES (only when eligible is true):
-- The job titles should be 2-4 words long.
-- The job titles should be appropriate for the job description.
-- The job titles should be simple and concise, but common in the industry.
+- Each job title should be 2-4 words long.
+- Each job title should be appropriate for the job description.
+- Each job title should be simple and concise, but common in the industry.
+- The job titles should be familiar to the career flow.
 
 Output Rules: Respond ONLY in valid JSON.
 JSON schema:
@@ -133,9 +142,7 @@ ${jobDescription}`;
       const data = await response.json();
       const result = JSON.parse(data.choices[0].message.content);
       eligibilityResult = result.eligible;
-      if (result.eligible) {
-        console.log(JSON.stringify({ summary: result.summary, jobTitles: result.jobTitles }, null, 2));
-      }
+      console.log(eligibilityResult);
       return result;
     } finally {
       isChecking = false;
@@ -191,15 +198,15 @@ ${jobDescription}`;
 
       const data = await response.json();
       const technicalSkills = JSON.parse(data.choices[0].message.content) as TechnicalSkillsData;
-      console.log(technicalSkills);
       return technicalSkills;
     } finally {
       isGeneratingTechnicalSkills = false;
     }
   }
 
-  async function generateWorkExperience() {
+  async function generateWorkExperience(): Promise<GeneratedWorkExperience[]> {
     isGeneratingExperience = true;
+    const results: GeneratedWorkExperience[] = [];
     try {
       for (const entry of workEntries) {
         const systemPrompt = `You are an expert resume writer and ATS optimization specialist.
@@ -244,24 +251,34 @@ ${jobDescription}`;
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userPrompt },
             ],
+            response_format: { type: 'json_object' },
           }),
         });
 
         const data = await response.json();
-        const bullets = data.choices[0].message.content;
-        console.log(`[${entry.company} | ${entry.date}]\n${bullets}`);
+        const parsed = JSON.parse(data.choices[0].message.content) as { sentences: string[] };
+        results.push({ company: entry.company, date: entry.date, sentences: parsed.sentences });
       }
     } finally {
       isGeneratingExperience = false;
     }
+    return results;
   }
 
   async function handleGenerate() {
+    resumeData = null;
     const result = await checkEligibilityAndGenerateSummary();
     if (result?.eligible === true) {
       const technicalSkills = await generateTechnicalSkills();
       if (technicalSkills) {
-        await generateWorkExperience();
+        const workExperience = await generateWorkExperience();
+        resumeData = {
+          summary: result.summary,
+          jobTitles: result.jobTitles,
+          technicalSkills,
+          workExperience,
+        };
+        console.log(JSON.stringify(resumeData, null, 2));
       }
     }
   }
