@@ -237,7 +237,7 @@ ${jobDescription}`;
     }
   }
 
-  async function generateWorkExperience(technicalSkills: TechnicalSkillsData) {
+  async function generateWorkExperience() {
     isGeneratingExperience = true;
     try {
       for (const entry of workEntries) {
@@ -301,7 +301,7 @@ ${jobDescription}`;
       await generateSummary();
       const technicalSkills = await generateTechnicalSkills();
       if (technicalSkills) {
-        await generateWorkExperience(technicalSkills);
+        await generateWorkExperience();
       }
     }
   }
