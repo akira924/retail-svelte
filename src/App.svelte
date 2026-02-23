@@ -1,6 +1,7 @@
 <script lang="ts">
-  type WorkEntry = { company: string; date: string; location: string; bulletPoints: number };
+  type WorkEntry = { company: string; date: string; location: string; level: string; bulletPoints: number };
   type EducationEntry = { degree: string; date: string; institution: string; location: string };
+  type TechnicalSkillsData = { technicalSkills: { category: string; skills: string[] }[] };
 
   const STORAGE_KEY = 'profile-form-data';
 
@@ -14,20 +15,19 @@
 
   const saved = loadSaved();
 
-  let firstName = $state<string>(saved?.firstName ?? '');
-  let lastName = $state<string>(saved?.lastName ?? '');
+  let fullName = $state<string>(saved?.fullName ?? '');
   let email = $state<string>(saved?.email ?? '');
   let phone = $state<string>(saved?.phone ?? '');
   let location = $state<string>(saved?.location ?? '');
 
   let workEntries = $state<WorkEntry[]>(saved?.workEntries ?? [
-    { company: '', date: '', location: '', bulletPoints: 5 },
-    { company: '', date: '', location: '', bulletPoints: 5 },
-    { company: '', date: '', location: '', bulletPoints: 5 },
+    { company: '', date: '', location: '', level: '', bulletPoints: 5 },
+    { company: '', date: '', location: '', level: '', bulletPoints: 4 },
+    { company: '', date: '', location: '', level: '', bulletPoints: 3 },
   ]);
 
   function addWork() {
-    workEntries = [...workEntries, { company: '', date: '', location: '', bulletPoints: 5 }];
+    workEntries = [...workEntries, { company: '', date: '', location: '', level: '', bulletPoints: 5 }];
   }
 
   function removeWork(index: number) {
@@ -37,7 +37,7 @@
   function getWorkExperienceSummary(): string {
     return workEntries
       .filter(e => e.company || e.date)
-      .map(e => `${e.company}: ${e.date}`)
+      .map(e => `${e.company}${e.level ? ` (${e.level} level)` : ''}: ${e.date}`)
       .join('\n');
   }
 
@@ -68,35 +68,26 @@
     eligibilityResult = null;
     isChecking = true;
     try {
-      const prompt = `You are a job eligibility validator.
+      const systemPrompt = `You are a job eligibility validator.
 Your task is to determine whether a resume should be generated for a given Job Description (JD).
 
 Decision Rules (apply in order):
 1. If the JD requires any type of clearance (e.g., security clearance, government clearance, public trust), set "eligible" to false.
-2. If the JD requires on-site or hybrid work, set "eligible" to false.
+2. If the JD requires on-site or hybrid work,
+  - Set "eligible" to true ONLY if there is possibility to work fully remote.
+  - Otherwise, set "eligible" to false.
 3. If the JD specifies a required candidate location:
-   - Set "eligible" to true ONLY if the required location exactly matches the candidate's location.
-   - Otherwise, set "eligible" to false.
+  - Set "eligible" to true ONLY if the required location exactly matches the candidate's location.
+  - Otherwise, set "eligible" to false.
 4. If none of the above conditions apply, set "eligible" to true.
 
-Output Rules:
-1. If eligible is true:
-  - Clean up job description by removing these kinds of parts and sections and return the cleaned up job description in the following JSON schema.
-      - relocation, travel expectations or physical demands
-      - salary, bonuses, perks, or benefits
-      JSON schema:
-      {
-         "eligible": Boolean,
-         "jd": String
-      }
-2. If eligible is false:
-      JSON schema:
-      {
-         "eligible": Boolean
-      }
-- Respond ONLY in valid JSON.
-- Do NOT add explanations outside the JSON.
+Output Rules: Respond ONLY in valid JSON.
+  JSON schema:
+  {
+      "eligible": Boolean
+  }`;
 
+      const userPrompt = `
 Candidate location:
 ${location}
 
@@ -111,7 +102,10 @@ ${jobDescription}`;
         },
         body: JSON.stringify({
           model: OPENAI_MODEL,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
           response_format: { type: 'json_object' },
         }),
       });
@@ -119,10 +113,6 @@ ${jobDescription}`;
       const data = await response.json();
       const result = JSON.parse(data.choices[0].message.content);
       eligibilityResult = result.eligible;
-      if (result.eligible && result.jd) {
-        jobDescription = result.jd;
-        console.log('Cleaned JD:', result.jd);
-      }
     } finally {
       isChecking = false;
     }
@@ -132,30 +122,41 @@ ${jobDescription}`;
     isGeneratingSummary = true;
     try {
       const career = getWorkExperienceSummary();
-      const prompt = `You are an expert resume writer and career consultant.
-Task: Based on the job description and career provided below, generate a professional summary that would be an ideal fit for the company and role.
+      const systemPrompt = `You are an expert resume writer and ATS optimization specialist.
+Your tasks are to:
+1) Generate a professional summary that would be an ideal fit for the company and the role based on the job description and career provided.
+2) Generate job titles for each career based on the job description and career provided.
 
+RULES FOR SUMMARY:
+- Length: 3–4 sentences only
+- Tone: professional, confident, concise
+- Optimization: ATS-friendly (use relevant keywords from the job description)
+- Alignment: tailor directly to the provided job description
+- Perspective: third person, no personal pronouns
+- Formatting: plain text, no bullet points, no headings
+
+RULES FOR JOB TITLE:
+- The job titles should be 2-4 words long.
+- The job titles should be appropriate for the job description.
+- The job titles should be simple and concise, but common in the industry.
+
+Input:
+You will receive a job description and a candidate's brief career.
+
+Output:
+Return ONLY the summary text as JSON
+JSON schema:
+{
+  "summary": "Summary text",
+  "jobTitles": ["Job Title1", "Job Title2", "Job Title3"]
+}`;
+
+      const userPrompt = `
 Here is my brief career.
 ${career}
 
 Job Description:
-${jobDescription}
-
-Guidelines:
-
-1. Formatting:
-- Do not include headers, job titles, or company names in the summary.
-- Write the summary as a continuous paragraph, without bullet points or indentation. Sentences should flow naturally and be concise.
-
-2. ATS Compatibility:
-- Use proper keywords from the job description.
-- Avoid non-standard symbols or unnecessary formatting that could confuse ATS systems, except for technical terms like "CI/CD" or "T-SQL".
-
-3. Tone & Style:
-- The summary should be professional, clear, and succinct.
-- Tailor the language to align with the responsibilities and qualifications listed in the job description.
-
-Output: Only provide the generated summary, nothing else.`;
+${jobDescription}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -165,7 +166,10 @@ Output: Only provide the generated summary, nothing else.`;
         },
         body: JSON.stringify({
           model: OPENAI_MODEL,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
         }),
       });
 
@@ -180,27 +184,33 @@ Output: Only provide the generated summary, nothing else.`;
   async function generateTechnicalSkills() {
     isGeneratingTechnicalSkills = true;
     try {
-      const prompt = `You are an expert resume writer.
-Task: Generate a professional Technical Skills section based on the following job description.
+      const systemPrompt = `You are an expert resume writer.
+Your task is to generate a professional technical skills section based on the following job description.
 
 Guidelines:
-1. List at least 30-35 technical skills relevant to the job or related fields.
+1. List 30-40 technical skills relevant to the job or related fields.
 2. Include technologies explicitly mentioned in the job description as well as related skills.
-3. Categorize skills in resume style with one line per category.
-4. Format:
-   **Category1:** Skill1, Skill2, Skill3
-   **Category2:** Skill1, Skill2, Skill3
-   ...
+3. Include technologies released during the work period.
+4. Categorize skills.
 5. Ensure ATS compatibility:
    - Use proper keywords
    - Avoid special symbols or unnecessary formatting
    - Keep technical symbols like '/' or '-' when appropriate (e.g., "CI/CD", "T-SQL")
 6. Double-check that all technologies in the job description are included.
 
-Job Description:
-${jobDescription}
+Output ONLY the Technical Skills section in JSON format.
+JSON schema:
+{
+  "technicalSkills": [
+    {
+      "category": "Category1",
+      "skills": ["Skill1", "Skill2", "Skill3"]
+    }
+  ]
+}`;
 
-Output ONLY the Technical Skills section.`;
+      const userPrompt = `Job Description:
+${jobDescription}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -210,12 +220,16 @@ Output ONLY the Technical Skills section.`;
         },
         body: JSON.stringify({
           model: OPENAI_MODEL,
-          messages: [{ role: 'user', content: prompt }],
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          response_format: { type: 'json_object' },
         }),
       });
 
       const data = await response.json();
-      const technicalSkills = data.choices[0].message.content;
+      const technicalSkills = JSON.parse(data.choices[0].message.content) as TechnicalSkillsData;
       console.log(technicalSkills);
       return technicalSkills;
     } finally {
@@ -223,63 +237,39 @@ Output ONLY the Technical Skills section.`;
     }
   }
 
-  async function generateWorkExperience(technicalSkills: string) {
+  async function generateWorkExperience() {
     isGeneratingExperience = true;
     try {
       for (const entry of workEntries) {
-        const prompt = `You are an expert resume writer and ATS optimization specialist.
-TASK: Generate professional resume experience sentences tailored to the provided job description and company information.
+        const systemPrompt = `You are an expert resume writer and ATS optimization specialist.
+Your task is to generate professional resume experience sentences based on the provided job description, company information and number of sentences required.
 
-INPUT:
+GUIDELINES:
+1. Write in third-person only without the name, and he or she.
+2. Each sentence must be 150-250 characters and contain detailed, technically rich descriptions of your role, specific contributions, and technologies used.
+3. Each experience must reference company industry relevance.
+4. Each sentence must end with a period.
+5. Each sentence only contain the content with no headers, job titles, or company names.
+6. Use ATS-friendly technical keywords.
+7. Use only technologies that were publicly available during the work period.
+8. No sentence may be vague or generic
+9. Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
+10. All technologies mentioned in the job description must be included and used correctly in the sentences.
+
+OUTPUT FORMAT:
+Return ONLY the sentences as JSON.
+JSON schema:
+{
+  "sentences": ["Sentence1", "Sentence2", "Sentence3"],
+}`;
+
+      const userPrompt = `
 Company Name: ${entry.company}
 Work Period: ${entry.date}
 Required Number of Sentences: ${entry.bulletPoints}
 
-Technical Skills:
-${technicalSkills}
-
 JOB DESCRIPTION:
-${jobDescription}
-
-RULES:
-1. EXPERIENCE GENERATION
-- Generate exactly ${entry.bulletPoints} experience sentences.
-
-Technology Usage:
-- Identify key technologies from the job description.
-- Use only technologies that were publicly available during the work period.
-- Prioritize technologies strongly relevant to the job description.
-
-Company and Industry Alignment:
-- At least two sentences must clearly reflect domain or industry alignment with the company's business goals or sector.
-
-Sentence Requirements:
-- Each sentence must be between 150 and 220 characters.
-- Each sentence must contain detailed technical contributions and measurable engineering responsibilities.
-- Sentences must be resume-style accomplishments.
-- Do not use first-person or third-person pronouns.
-
-2. FORMATTING RULES
-- Do not include bullet symbols.
-- Do not include headers or titles.
-- Do not include company names or job titles in the output.
-- Each sentence must be on a new line.
-- No extra blank lines.
-- Each sentence must end with a period.
-
-3. ATS OPTIMIZATION
-- Use ATS-friendly technical keywords.
-- Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
-
-4. FINAL VALIDATION
-Ensure:
-- Exact number of sentences generated.
-- Every sentence meets the character limit.
-- Output contains only the sentences.
-
-OUTPUT FORMAT:
-Return ONLY the sentences separated by line breaks.
-Do not include explanations or commentary.`;
+${jobDescription}`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -289,7 +279,10 @@ Do not include explanations or commentary.`;
           },
           body: JSON.stringify({
             model: OPENAI_MODEL,
-            messages: [{ role: 'user', content: prompt }],
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
           }),
         });
 
@@ -308,15 +301,14 @@ Do not include explanations or commentary.`;
       await generateSummary();
       const technicalSkills = await generateTechnicalSkills();
       if (technicalSkills) {
-        await generateWorkExperience(technicalSkills);
+        await generateWorkExperience();
       }
     }
   }
 
   $effect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      firstName,
-      lastName,
+      fullName,
       email,
       phone,
       location,
@@ -352,12 +344,8 @@ Do not include explanations or commentary.`;
       </h2>
       <div class="form-grid">
         <div class="field">
-          <label for="firstName">First Name</label>
-          <input id="firstName" type="text" bind:value={firstName} placeholder="John" />
-        </div>
-        <div class="field">
-          <label for="lastName">Last Name</label>
-          <input id="lastName" type="text" bind:value={lastName} placeholder="Doe" />
+          <label for="fullName">Full Name</label>
+          <input id="fullName" type="text" bind:value={fullName} placeholder="John Doe" />
         </div>
         <div class="field">
           <label for="email">Email</label>
@@ -367,7 +355,7 @@ Do not include explanations or commentary.`;
           <label for="phone">Phone</label>
           <input id="phone" type="tel" bind:value={phone} placeholder="+1 (555) 000-0000" />
         </div>
-        <div class="field field--full">
+        <div class="field">
           <label for="location">Location</label>
           <input id="location" type="text" bind:value={location} placeholder="City, State / Country" />
         </div>
@@ -399,6 +387,15 @@ Do not include explanations or commentary.`;
           <div class="field">
             <label for="work-location-{i}">Location</label>
             <input id="work-location-{i}" type="text" bind:value={entry.location} placeholder="City, State / Remote" />
+          </div>
+          <div class="field">
+            <label for="work-level-{i}">Level</label>
+            <select id="work-level-{i}" bind:value={entry.level}>
+              <option value=""></option>
+              <option value="Senior">Senior</option>
+              <option value="Mid-Level">Middle</option>
+              <option value="Junior">Junior</option>
+            </select>
           </div>
           <div class="field field--bullets">
             <label for="work-bullets-{i}">Bullets</label>
@@ -497,7 +494,7 @@ Do not include explanations or commentary.`;
 
   .page {
     width: 100%;
-    max-width: 760px;
+    max-width: 1100px;
   }
 
   .page-title {
@@ -550,10 +547,6 @@ Do not include explanations or commentary.`;
     gap: 1rem 1.25rem;
   }
 
-  .field--full {
-    grid-column: 1 / -1;
-  }
-
   .section-header {
     display: flex;
     align-items: center;
@@ -567,7 +560,7 @@ Do not include explanations or commentary.`;
 
   .row-grid {
     display: grid;
-    grid-template-columns: 90px 1fr 1fr 1fr 68px 32px;
+    grid-template-columns: 90px 1fr 1fr 1fr 100px 68px 32px;
     gap: 0.75rem 1.25rem;
     align-items: end;
     padding: 0.75rem 0;
@@ -640,6 +633,28 @@ Do not include explanations or commentary.`;
   }
 
   input:focus {
+    border-color: #4f46e5;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  }
+
+  select {
+    height: 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0 0.6rem;
+    font-size: 0.9rem;
+    color: #111827;
+    background: #f9fafb;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    appearance: auto;
+  }
+
+  select:focus {
     border-color: #4f46e5;
     background: #fff;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
@@ -856,12 +871,8 @@ Do not include explanations or commentary.`;
       grid-template-columns: 1fr;
     }
 
-    .field--full {
-      grid-column: 1;
-    }
-
     .row-grid {
-      grid-template-columns: 1fr 1fr 68px 32px;
+      grid-template-columns: 1fr 1fr 1fr 68px 32px;
     }
 
     .row-label {
