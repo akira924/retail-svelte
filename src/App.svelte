@@ -10,6 +10,52 @@
     workExperience: GeneratedWorkExperience[];
   };
 
+  const sampleResumeData: ResumeData = {
+    summary: 'Results-driven software engineer with 8+ years of experience designing and delivering scalable full-stack applications across cloud-native and enterprise environments. Proficient in TypeScript, React, and Node.js with a strong track record of optimizing system performance and improving developer productivity. Demonstrated ability to lead cross-functional teams, drive technical architecture decisions, and deliver high-quality software aligned with business objectives.',
+    jobTitles: ['Senior Software Engineer', 'Full Stack Developer', 'Software Development Engineer'],
+    technicalSkills: {
+      technicalSkills: [
+        { category: 'Languages', skills: ['TypeScript', 'JavaScript', 'Python', 'SQL', 'HTML5', 'CSS3'] },
+        { category: 'Frameworks & Libraries', skills: ['React', 'Node.js', 'Express', 'Svelte', 'Next.js', 'GraphQL'] },
+        { category: 'Cloud & DevOps', skills: ['AWS', 'Azure', 'Docker', 'Kubernetes', 'CI/CD', 'Terraform'] },
+        { category: 'Databases', skills: ['PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'T-SQL'] },
+        { category: 'Tools & Practices', skills: ['Git', 'Jest', 'REST APIs', 'Agile/Scrum', 'Microservices', 'TDD'] },
+      ],
+    },
+    workExperience: [
+      {
+        company: 'Acme Corp',
+        date: '2021 – Present',
+        sentences: [
+          'Architected and delivered a cloud-native microservices platform on AWS using Node.js, TypeScript, and Docker, reducing deployment time by 40% and improving system reliability to 99.9% uptime.',
+          'Led migration of a legacy monolithic application to a React-based SPA backed by GraphQL APIs, cutting page load times by 55% and increasing user engagement by 30% across 200,000 monthly active users.',
+          'Designed and implemented CI/CD pipelines using GitHub Actions and Terraform, enabling automated blue-green deployments and reducing production incidents related to manual releases by 70%.',
+          'Collaborated with product and design teams in Agile sprints to deliver 12 major features on schedule, including a real-time notification system built with WebSockets and Redis pub/sub.',
+          'Mentored a team of 4 junior engineers through code reviews, pair programming sessions, and architectural walkthroughs, accelerating their ramp-up time by 3 months on average.',
+        ],
+      },
+      {
+        company: 'Globex Solutions',
+        date: '2018 – 2021',
+        sentences: [
+          'Developed and maintained RESTful APIs using Node.js and Express serving 500+ enterprise clients, integrating with PostgreSQL and Redis to achieve sub-100ms average response times under peak load.',
+          'Built reusable React component libraries adopted across 6 internal products, reducing front-end development effort by 35% and ensuring consistent UX across the organization.',
+          'Implemented automated testing suites with Jest and Cypress, increasing code coverage from 42% to 87% and cutting regression bugs reported in production by half.',
+          'Optimized complex T-SQL queries and database indexes in a high-traffic PostgreSQL environment, reducing average query execution time by 60% and lowering infrastructure costs by $18K annually.',
+        ],
+      },
+      {
+        company: 'Initech Digital',
+        date: '2016 – 2018',
+        sentences: [
+          'Contributed to full-stack feature development using JavaScript, Python, and MySQL for a SaaS platform serving 50,000 users, participating in bi-weekly release cycles with zero critical post-deployment issues.',
+          'Integrated third-party payment and OAuth2 authentication services, enabling a seamless onboarding flow that reduced sign-up drop-off rate by 22%.',
+          'Assisted in containerizing legacy services with Docker and deploying to AWS EC2, establishing the foundation for the company\'s cloud migration strategy.',
+        ],
+      },
+    ],
+  };
+
   const STORAGE_KEY = 'profile-form-data';
 
   function loadSaved() {
