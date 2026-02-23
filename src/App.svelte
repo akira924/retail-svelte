@@ -92,7 +92,7 @@ Candidate location:
 ${location}
 
 Job Description:
-${jobDescription}`.trim();
+${jobDescription}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -123,9 +123,11 @@ ${jobDescription}`.trim();
     try {
       const career = getWorkExperienceSummary();
       const systemPrompt = `You are an expert resume writer and ATS optimization specialist.
-Your task is to generate a professional summary that would be an ideal fit for the company and the role based on the job description and career provided.
+Your tasks are to:
+1) Generate a professional summary that would be an ideal fit for the company and the role based on the job description and career provided.
+2) Generate job titles for each career based on the job description and career provided.
 
-Rules:
+RULES FOR SUMMARY:
 - Length: 3–4 sentences only
 - Tone: professional, confident, concise
 - Optimization: ATS-friendly (use relevant keywords from the job description)
@@ -133,24 +135,28 @@ Rules:
 - Perspective: third person, no personal pronouns
 - Formatting: plain text, no bullet points, no headings
 
+RULES FOR JOB TITLE:
+- The job titles should be 2-4 words long.
+- The job titles should be appropriate for the job description.
+- The job titles should be simple and concise, but common in the industry.
+
 Input:
-You will receive:
-1) A job description
-2) A candidate's brief career
+You will receive a job description and a candidate's brief career.
 
 Output:
 Return ONLY the summary text as JSON
 JSON schema:
 {
-  "summary": "Summary text"
-}`.trim();
+  "summary": "Summary text",
+  "jobTitles": ["Job Title1", "Job Title2", "Job Title3"]
+}`;
 
       const userPrompt = `
 Here is my brief career.
 ${career}
 
 Job Description:
-${jobDescription}`.trim();
+${jobDescription}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -201,10 +207,10 @@ JSON schema:
       "skills": ["Skill1", "Skill2", "Skill3"]
     }
   ]
-}`.trim();
+}`;
 
       const userPrompt = `Job Description:
-${jobDescription}`.trim();
+${jobDescription}`;
 
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -224,7 +230,7 @@ ${jobDescription}`.trim();
 
       const data = await response.json();
       const technicalSkills = JSON.parse(data.choices[0].message.content) as TechnicalSkillsData;
-      // console.log(technicalSkills);
+      console.log(technicalSkills);
       return technicalSkills;
     } finally {
       isGeneratingTechnicalSkills = false;
@@ -236,11 +242,9 @@ ${jobDescription}`.trim();
     try {
       for (const entry of workEntries) {
         const systemPrompt = `You are an expert resume writer and ATS optimization specialist.
-Your task are:
-1) Generate professional resume experience sentences based on the provided job description, company information and number of sentences required.
-2) Generate a job title based on the job description and other information.
+Your task is to generate professional resume experience sentences based on the provided job description, company information and number of sentences required.
 
-GUIDELINES FOR SENTENCES:
+GUIDELINES:
 1. Write in third-person only without the name, and he or she.
 2. Each sentence must be 150-250 characters and contain detailed, technically rich descriptions of your role, specific contributions, and technologies used.
 3. Each experience must reference company industry relevance.
@@ -252,26 +256,20 @@ GUIDELINES FOR SENTENCES:
 9. Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
 10. All technologies mentioned in the job description must be included and used correctly in the sentences.
 
-GUIDELINES FOR JOB TITLE:
-1. The job title should be 2-4 words long.
-2. The job title should be related to the job description.
-3. The job title should be simple and concise, but very common in the industry.
-
 OUTPUT FORMAT:
 Return ONLY the sentences as JSON.
 JSON schema:
 {
   "sentences": ["Sentence1", "Sentence2", "Sentence3"],
-  "jobTitle": "Job Title"
-}`.trim();
+}`;
 
       const userPrompt = `
-Company Name: ${entry.company} ${entry.level ? `(${entry.level} level)` : ''}
+Company Name: ${entry.company}
 Work Period: ${entry.date}
 Required Number of Sentences: ${entry.bulletPoints}
 
 JOB DESCRIPTION:
-${jobDescription}`.trim();
+${jobDescription}`;
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
