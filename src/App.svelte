@@ -1,59 +1,15 @@
 <script lang="ts">
+  import { jsPDF } from 'jspdf';
   type WorkEntry = { company: string; date: string; location: string; level: string; bulletPoints: number };
   type EducationEntry = { degree: string; date: string; institution: string; location: string };
   type TechnicalSkillsData = { technicalSkills: { category: string; skills: string[] }[] };
   type GeneratedWorkExperience = { company: string; date: string; sentences: string[] };
   type ResumeData = {
     summary: string;
+    formalRole: string;
     jobTitles: string[];
     technicalSkills: TechnicalSkillsData;
     workExperience: GeneratedWorkExperience[];
-  };
-
-  const sampleResumeData: ResumeData = {
-    summary: 'Results-driven software engineer with 8+ years of experience designing and delivering scalable full-stack applications across cloud-native and enterprise environments. Proficient in TypeScript, React, and Node.js with a strong track record of optimizing system performance and improving developer productivity. Demonstrated ability to lead cross-functional teams, drive technical architecture decisions, and deliver high-quality software aligned with business objectives.',
-    jobTitles: ['Senior Software Engineer', 'Full Stack Developer', 'Software Development Engineer'],
-    technicalSkills: {
-      technicalSkills: [
-        { category: 'Languages', skills: ['TypeScript', 'JavaScript', 'Python', 'SQL', 'HTML5', 'CSS3'] },
-        { category: 'Frameworks & Libraries', skills: ['React', 'Node.js', 'Express', 'Svelte', 'Next.js', 'GraphQL'] },
-        { category: 'Cloud & DevOps', skills: ['AWS', 'Azure', 'Docker', 'Kubernetes', 'CI/CD', 'Terraform'] },
-        { category: 'Databases', skills: ['PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'T-SQL'] },
-        { category: 'Tools & Practices', skills: ['Git', 'Jest', 'REST APIs', 'Agile/Scrum', 'Microservices', 'TDD'] },
-      ],
-    },
-    workExperience: [
-      {
-        company: 'Acme Corp',
-        date: '2021 – Present',
-        sentences: [
-          'Architected and delivered a cloud-native microservices platform on AWS using Node.js, TypeScript, and Docker, reducing deployment time by 40% and improving system reliability to 99.9% uptime.',
-          'Led migration of a legacy monolithic application to a React-based SPA backed by GraphQL APIs, cutting page load times by 55% and increasing user engagement by 30% across 200,000 monthly active users.',
-          'Designed and implemented CI/CD pipelines using GitHub Actions and Terraform, enabling automated blue-green deployments and reducing production incidents related to manual releases by 70%.',
-          'Collaborated with product and design teams in Agile sprints to deliver 12 major features on schedule, including a real-time notification system built with WebSockets and Redis pub/sub.',
-          'Mentored a team of 4 junior engineers through code reviews, pair programming sessions, and architectural walkthroughs, accelerating their ramp-up time by 3 months on average.',
-        ],
-      },
-      {
-        company: 'Globex Solutions',
-        date: '2018 – 2021',
-        sentences: [
-          'Developed and maintained RESTful APIs using Node.js and Express serving 500+ enterprise clients, integrating with PostgreSQL and Redis to achieve sub-100ms average response times under peak load.',
-          'Built reusable React component libraries adopted across 6 internal products, reducing front-end development effort by 35% and ensuring consistent UX across the organization.',
-          'Implemented automated testing suites with Jest and Cypress, increasing code coverage from 42% to 87% and cutting regression bugs reported in production by half.',
-          'Optimized complex T-SQL queries and database indexes in a high-traffic PostgreSQL environment, reducing average query execution time by 60% and lowering infrastructure costs by $18K annually.',
-        ],
-      },
-      {
-        company: 'Initech Digital',
-        date: '2016 – 2018',
-        sentences: [
-          'Contributed to full-stack feature development using JavaScript, Python, and MySQL for a SaaS platform serving 50,000 users, participating in bi-weekly release cycles with zero critical post-deployment issues.',
-          'Integrated third-party payment and OAuth2 authentication services, enabling a seamless onboarding flow that reduced sign-up drop-off rate by 22%.',
-          'Assisted in containerizing legacy services with Docker and deploying to AWS EC2, establishing the foundation for the company\'s cloud migration strategy.',
-        ],
-      },
-    ],
   };
 
   const STORAGE_KEY = 'profile-form-data';
@@ -125,7 +81,7 @@
       const systemPrompt = `You are a job eligibility validator and expert resume writer.
 Your tasks are to:
 1) Determine whether a resume should be generated for a given Job Description (JD).
-2) If eligible, generate a professional summary and job title for each position based on the JD and the candidate's career.
+2) If eligible, generate a professional summary, a formal role, and job title for each position based on the JD and the candidate's career.
 
 ELIGIBILITY RULES (apply in order):
 1. If the JD requires any type of clearance, set "eligible" to false.
@@ -145,6 +101,11 @@ SUMMARY RULES (only when eligible is true):
 - Perspective: third person, no personal pronouns
 - Formatting: plain text, no bullet points, no headings
 
+FORMAL ROLE RULES (only when eligible is true):
+- The title should be 2-4 words long.
+- The title should be appropriate for the job description.
+- The title should be simple and concise, but common in the industry.
+
 JOB TITLE RULES (only when eligible is true):
 - Each job title should be 2-4 words long.
 - Each job title should be appropriate for the job description.
@@ -156,6 +117,7 @@ JSON schema:
 {
   "eligible": Boolean,
   "summary": "Summary text or null if not eligible",
+  "formalRole": "Formal role text or null if not eligible",
   "jobTitles": ["Job Title1", "Job Title2", ...] or null if not eligible
 }`;
 
@@ -320,14 +282,219 @@ ${jobDescription}`;
         const workExperience = await generateWorkExperience();
         resumeData = {
           summary: result.summary,
+          formalRole: result.formalRole,
           jobTitles: result.jobTitles,
           technicalSkills,
           workExperience,
         };
-        console.log(JSON.stringify(resumeData, null, 2));
+        downloadResume();
       }
     }
   }
+
+  function downloadResume() {
+    const doc = buildResumePdf();
+    const safeName = (fullName || 'resume').replace(/\s+/g, '_');
+    doc.save(`${safeName}_resume.pdf`);
+  }
+
+  function buildResumePdf(): jsPDF {
+    const data = resumeData!;
+    const doc = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' });
+
+    const margin   = 0.4;
+    const pageW    = 8.5;
+    const pageH    = 11;
+    const contentW = pageW - margin * 2;
+    let y = margin;
+
+    const NAME_PT = 22;
+    const BODY_PT = 11;
+    const LH = (BODY_PT * 1.5) / 72; // line height in inches ≈ 0.2292"
+
+    function checkPage(needed: number) {
+      if (y + needed > pageH - margin) {
+        doc.addPage();
+        y = margin;
+      }
+    }
+
+    function body(style: 'normal' | 'bold' | 'italic' | 'bolditalic' = 'normal') {
+      doc.setFont('helvetica', style);
+      doc.setFontSize(BODY_PT);
+    }
+
+    function splitBody(text: string, maxWidth: number): string[] {
+      doc.setFontSize(BODY_PT);
+      return doc.splitTextToSize(text, maxWidth) as string[];
+    }
+
+    // ── Header ───────────────────────────────────────────────────────────────
+    const nameDisplay = fullName || 'Your Name';
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(NAME_PT);
+    const nameLineH = (NAME_PT * 1.5) / 72;
+
+    doc.setTextColor(17, 17, 17);
+    doc.text(nameDisplay, margin, y + nameLineH * 0.78);
+
+    if (data.formalRole) {
+      const nameW = doc.getTextWidth(nameDisplay);
+      body('normal');
+      doc.setTextColor(80, 80, 80);
+      doc.text('  ' + data.formalRole, margin + nameW, y + nameLineH * 0.78);
+    }
+
+    y += nameLineH;
+
+    const contactParts = [email, phone, location].filter(Boolean);
+    if (contactParts.length) {
+      body('normal');
+      doc.setTextColor(80, 80, 80);
+      doc.text(contactParts.join('  |  '), margin, y + LH * 0.78);
+      y += LH;
+    }
+
+    doc.setDrawColor(34, 34, 34);
+    doc.setLineWidth(0.02);
+    doc.line(margin, y + LH * 0.25, margin + contentW, y + LH * 0.25);
+    y += LH;
+
+    doc.setTextColor(17, 17, 17);
+
+    function drawSectionTitle(title: string) {
+      checkPage(LH * 2);
+      body('bold');
+      doc.setTextColor(17, 17, 17);
+      doc.text(title.toUpperCase(), margin, y + LH * 0.78);
+      y += LH * 1.25;
+    }
+
+    // ── Summary ──────────────────────────────────────────────────────────────
+    if (data.summary) {
+      drawSectionTitle('Professional Summary');
+      body('normal');
+      splitBody(data.summary, contentW).forEach(line => {
+        checkPage(LH);
+        doc.text(line, margin, y + LH * 0.78);
+        y += LH;
+      });
+      y += LH;
+    }
+
+    // ── Technical Skills ─────────────────────────────────────────────────────
+    if (data.technicalSkills.technicalSkills.length) {
+      drawSectionTitle('Technical Skills');
+      data.technicalSkills.technicalSkills.forEach(cat => {
+        const label    = cat.category + ': ';
+        const skillsStr = cat.skills.join(', ');
+
+        body('bold');
+        const labelW = doc.getTextWidth(label);
+
+        body('normal');
+        const firstLineSkills = doc.splitTextToSize(skillsStr, contentW - labelW) as string[];
+        const rest = firstLineSkills.length > 1
+          ? doc.splitTextToSize(firstLineSkills.slice(1).join(' '), contentW) as string[]
+          : [];
+
+        checkPage(LH);
+        body('bold');
+        doc.text(label, margin, y + LH * 0.78);
+        body('normal');
+        doc.text(firstLineSkills[0], margin + labelW, y + LH * 0.78);
+        y += LH;
+
+        rest.forEach(line => {
+          checkPage(LH);
+          doc.text(line, margin, y + LH * 0.78);
+          y += LH;
+        });
+      });
+      y += LH;
+    }
+
+    // ── Work Experience ───────────────────────────────────────────────────────
+    if (data.workExperience.length) {
+      drawSectionTitle('Work Experience');
+      data.workExperience.forEach((job, i) => {
+        const entry = workEntries[i];
+        checkPage(LH * 2);
+
+        // Row 1: Company (bold, left)  |  Date (normal, right)
+        // Row 2: Job Title (normal, left)  |  Location (italic, right)
+        const jobTitle = data.jobTitles?.[i] ?? '';
+
+        body('bold');
+        doc.text(job.company, margin, y + LH * 0.78);
+        body('normal');
+        doc.setTextColor(80, 80, 80);
+        doc.text(job.date, margin + contentW, y + LH * 0.78, { align: 'right' });
+        doc.setTextColor(17, 17, 17);
+        y += LH;
+
+        if (jobTitle || entry?.location) {
+          if (jobTitle) {
+            body('normal');
+            doc.text(jobTitle, margin, y + LH * 0.78);
+          }
+          if (entry?.location) {
+            body('italic');
+            doc.setTextColor(80, 80, 80);
+            doc.text(entry.location, margin + contentW, y + LH * 0.78, { align: 'right' });
+            doc.setTextColor(17, 17, 17);
+          }
+          y += LH;
+        }
+
+        // Bullet points
+        body('normal');
+        const bulletIndent = margin + 0.18;
+        const bulletW = contentW - 0.18;
+        job.sentences.forEach(sentence => {
+          const lines = splitBody(sentence, bulletW);
+          checkPage(lines.length * LH);
+          lines.forEach((line, li) => {
+            if (li === 0) doc.text('\u2022', margin + 0.04, y + LH * 0.78);
+            doc.text(line, bulletIndent, y + LH * 0.78);
+            y += LH;
+          });
+        });
+        y += LH * 0.25;
+      });
+      y += LH;
+    }
+
+    // ── Education ────────────────────────────────────────────────────────────
+    const validEdu = educationEntries.filter(e => e.degree || e.institution);
+    if (validEdu.length) {
+      drawSectionTitle('Education');
+      validEdu.forEach(edu => {
+        checkPage(LH * 2);
+
+        body('bold');
+        doc.text(edu.degree || '', margin, y + LH * 0.78);
+        body('normal');
+        doc.setTextColor(80, 80, 80);
+        doc.text(edu.date || '', margin + contentW, y + LH * 0.78, { align: 'right' });
+        doc.setTextColor(17, 17, 17);
+        y += LH;
+
+        if (edu.institution || edu.location) {
+          body('normal');
+          doc.setTextColor(85, 85, 85);
+          if (edu.institution) doc.text(edu.institution, margin, y + LH * 0.78);
+          if (edu.location) doc.text(edu.location, margin + contentW, y + LH * 0.78, { align: 'right' });
+          doc.setTextColor(17, 17, 17);
+          y += LH;
+        }
+        y += LH * 0.25;
+      });
+    }
+
+    return doc;
+  }
+
 
   $effect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -496,13 +663,14 @@ ${jobDescription}`;
         ></textarea>
       </div>
       <div class="generate-row">
-        <button class="btn-generate" type="button" onclick={handleGenerate}           disabled={isChecking || isGeneratingTechnicalSkills || isGeneratingExperience}>
+        <button class="btn-generate" type="button" onclick={handleGenerate} disabled={isChecking || isGeneratingTechnicalSkills || isGeneratingExperience}>
           {isChecking ? 'Checking & Generating …' : isGeneratingTechnicalSkills ? 'Building Skills …' : isGeneratingExperience ? 'Writing Experience …' : 'Generate'}
         </button>
       </div>
     </section>
   </div>
 </main>
+
 
 <style>
   main {
@@ -513,6 +681,7 @@ ${jobDescription}`;
     justify-content: center;
     padding: 2.5rem 1rem 4rem;
     box-sizing: border-box;
+    line-height: 1.5;
   }
 
   .page {
@@ -696,7 +865,7 @@ ${jobDescription}`;
     outline: none;
     width: 100%;
     box-sizing: border-box;
-    line-height: 1.55;
+    line-height: 1.5;
   }
 
   textarea::placeholder {
@@ -779,6 +948,8 @@ ${jobDescription}`;
   .generate-row {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
     margin-top: 1.25rem;
   }
 
