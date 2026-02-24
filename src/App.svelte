@@ -63,7 +63,7 @@
     educationEntries = educationEntries.filter((_, i) => i !== index);
   }
 
-  let jobDescription = $state<string>('');
+  let jobDescription = $state<string>(saved?.jobDescription ?? '');
 
   const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY as string;
   const OPENAI_MODEL = import.meta.env.VITE_OPENAI_MODEL as string;
@@ -73,6 +73,7 @@
   let isGeneratingExperience = $state(false);
   let eligibilityResult = $state<boolean | null>(null);
   let resumeData = $state<ResumeData | null>(null);
+  let errorMessage = $state<string | null>(null);
 
   async function checkEligibilityAndGenerateSummary() {
     eligibilityResult = null;
@@ -158,7 +159,6 @@ ${jobDescription}`;
       const data = await response.json();
       const result = JSON.parse(data.choices[0].message.content);
       eligibilityResult = result.eligible;
-      console.log(eligibilityResult);
       return result;
     } finally {
       isChecking = false;
@@ -239,7 +239,7 @@ GUIDELINES:
 8. No sentence may be vague or generic
 9. Avoid special characters except "/" or "-" when required (examples: CI/CD, T-SQL).
 10. All technologies mentioned in the job description must be included and used correctly in the sentences.
-10. All technologies are included only after their first version (or alpha release date).
+11. All technologies are included only after their first version (or alpha release date).
 
 OUTPUT FORMAT: Return ONLY the sentences as JSON.
 JSON schema:
@@ -283,10 +283,11 @@ ${jobDescription}`;
 
   async function handleGenerate() {
     resumeData = null;
-    const result = await checkEligibilityAndGenerateSummary();
-    if (result?.eligible === true) {
-      const technicalSkills = await generateTechnicalSkills();
-      if (technicalSkills) {
+    errorMessage = null;
+    try {
+      const result = await checkEligibilityAndGenerateSummary();
+      if (result?.eligible === true) {
+        const technicalSkills = await generateTechnicalSkills();
         const workExperience = await generateWorkExperience();
         resumeData = {
           summary: result.summary,
@@ -298,6 +299,8 @@ ${jobDescription}`;
         };
         downloadResume();
       }
+    } catch (err) {
+      errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.';
     }
   }
 
@@ -478,8 +481,7 @@ ${jobDescription}`;
     const validEduIndices = educationEntries
       .map((e, i) => ({ e, i }))
       .filter(({ e }) => e.degree || e.institution);
-    const validEdu = validEduIndices.map(({ e }) => e);
-    if (validEdu.length) {
+    if (validEduIndices.length) {
       drawSectionTitle('Education');
       validEduIndices.forEach(({ e: edu, i: origIdx }) => {
         checkPage(LH * 2);
@@ -515,6 +517,7 @@ ${jobDescription}`;
       email,
       phone,
       location,
+      jobDescription,
       workEntries: $state.snapshot(workEntries),
       educationEntries: $state.snapshot(educationEntries),
     }));
@@ -532,6 +535,14 @@ ${jobDescription}`;
       {/if}
     </span>
     <button class="alert-close" type="button" aria-label="Dismiss" onclick={() => eligibilityResult = null}>×</button>
+  </div>
+{/if}
+
+{#if errorMessage !== null}
+  <div class="alert-banner alert-error" role="alert">
+    <span class="alert-icon">!</span>
+    <span class="alert-text">{errorMessage}</span>
+    <button class="alert-close" type="button" aria-label="Dismiss" onclick={() => errorMessage = null}>×</button>
   </div>
 {/if}
 
@@ -1026,6 +1037,17 @@ ${jobDescription}`;
     background: #fff7ed;
     border-bottom: 1px solid #fed7aa;
     color: #9a3412;
+  }
+
+  .alert-error {
+    background: #fef2f2;
+    border-bottom: 1px solid #fecaca;
+    color: #991b1b;
+  }
+
+  .alert-error .alert-icon {
+    background: #fee2e2;
+    color: #dc2626;
   }
 
   .alert-icon {
