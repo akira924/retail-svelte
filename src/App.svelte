@@ -8,6 +8,7 @@
     summary: string;
     formalRole: string;
     jobTitles: string[];
+    educationDegrees: string[];
     technicalSkills: TechnicalSkillsData;
     workExperience: GeneratedWorkExperience[];
   };
@@ -81,23 +82,21 @@
       const systemPrompt = `You are a job eligibility validator and expert resume writer.
 Your tasks are to:
 1) Determine whether a resume should be generated for a given Job Description (JD).
-2) If eligible, generate a professional summary, a formal role, job titles for each position, and education major based on the JD and the candidate's career.
+2) If eligible, generate a professional summary, a formal role, and job titles for each position based on the JD and the candidate's career.
+3) If eligible, update the education degrees based on the candidate's degrees and the JD.
 
 ELIGIBILITY RULES (apply in order):
 1. If the JD requires any type of clearance, set "eligible" to false.
-2. If the JD requires on-site or hybrid work,
+2. If the JD requires on-site or hybrid work or specifies a required candidate location,
   - Set "eligible" to true ONLY if there is possibility to work fully remote.
   - Otherwise, set "eligible" to false.
-3. If the JD specifies a required candidate location:
-  - Set "eligible" to true ONLY if the required location exactly matches or contains the candidate's location.
-  - Otherwise, set "eligible" to false.
-4. If none of the above conditions apply, set "eligible" to true.
+3. If none of the above conditions apply, set "eligible" to true.
 
 SUMMARY RULES (only when eligible is true):
 - Length: 3–4 sentences only
 - Tone: professional, confident, concise
 - Optimization: ATS-friendly (use relevant keywords from the job description)
-- Alignment: tailor directly to the provided job description
+- Alignment: tailor directly to the provided job description and align with the candidate's experience years.
 - Perspective: third person, no personal pronouns
 - Formatting: plain text, no bullet points, no headings
 
@@ -112,9 +111,10 @@ JOB TITLE RULES (only when eligible is true):
 - Each job title should be simple and concise, but common in the industry.
 - The job titles should be familiar to the career flow.
 
-EDUCATION MAJOR RULES (only when eligible is true):
-1. The major should be appropriate for the job description.
-2. The major should be common in the industry.
+EDUCATION DEGREE RULES (only when eligible is true):
+Only modify the degree if it is not related to the job description.
+- Each degree should be appropriate for the job description.
+- Each degree should be common in the industry.
 
 Output Rules: Respond ONLY in valid JSON.
 JSON schema:
@@ -122,7 +122,8 @@ JSON schema:
   "eligible": Boolean,
   "summary": "Summary text or null if not eligible",
   "formalRole": "Formal role text or null if not eligible",
-  "jobTitles": ["Job Title1", "Job Title2", ...] or null if not eligible
+  "jobTitles": ["Job Title1", "Job Title2", ...] or null if not eligible,
+  "educationDegrees": ["Updated Degree1", "Updated Degree2", ...] or null if not eligible
 }`;
 
       const userPrompt = `
@@ -131,6 +132,9 @@ ${location}
 
 Here is my brief career.
 ${career}
+
+Here are my education degrees.
+${educationEntries.map(entry => `${entry.degree}`).join('\n')}
 
 Job Description:
 ${jobDescription}`;
@@ -288,6 +292,7 @@ ${jobDescription}`;
           summary: result.summary,
           formalRole: result.formalRole,
           jobTitles: result.jobTitles,
+          educationDegrees: result.educationDegrees,
           technicalSkills,
           workExperience,
         };
@@ -470,14 +475,18 @@ ${jobDescription}`;
     }
 
     // ── Education ────────────────────────────────────────────────────────────
-    const validEdu = educationEntries.filter(e => e.degree || e.institution);
+    const validEduIndices = educationEntries
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => e.degree || e.institution);
+    const validEdu = validEduIndices.map(({ e }) => e);
     if (validEdu.length) {
       drawSectionTitle('Education');
-      validEdu.forEach(edu => {
+      validEduIndices.forEach(({ e: edu, i: origIdx }) => {
         checkPage(LH * 2);
 
+        const displayDegree = data.educationDegrees?.[origIdx] || edu.degree || '';
         body('bold');
-        doc.text(edu.degree || '', margin, y + LH * 0.78);
+        doc.text(displayDegree, margin, y + LH * 0.78);
         body('normal');
         doc.setTextColor(80, 80, 80);
         doc.text(edu.date || '', margin + contentW, y + LH * 0.78, { align: 'right' });
