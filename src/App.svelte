@@ -81,7 +81,7 @@
       const systemPrompt = `You are a job eligibility validator and expert resume writer.
 Your tasks are to:
 1) Determine whether a resume should be generated for a given Job Description (JD).
-2) If eligible, generate a professional summary, a formal role, and job title for each position based on the JD and the candidate's career.
+2) If eligible, generate a professional summary, a formal role, job titles for each position, and education major based on the JD and the candidate's career.
 
 ELIGIBILITY RULES (apply in order):
 1. If the JD requires any type of clearance, set "eligible" to false.
@@ -111,6 +111,10 @@ JOB TITLE RULES (only when eligible is true):
 - Each job title should be appropriate for the job description.
 - Each job title should be simple and concise, but common in the industry.
 - The job titles should be familiar to the career flow.
+
+EDUCATION MAJOR RULES (only when eligible is true):
+1. The major should be appropriate for the job description.
+2. The major should be common in the industry.
 
 Output Rules: Respond ONLY in valid JSON.
 JSON schema:
