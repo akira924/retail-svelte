@@ -236,7 +236,7 @@ GUIDELINES:
 OUTPUT FORMAT: Return ONLY the sentences as JSON.
 JSON schema:
 {
-  "sentences": ["Sentence1", "Sentence2", "Sentence3"],
+  "sentences": ["Sentence1", "Sentence2", "Sentence3"]
 }`;
 
       const userPrompt = `
