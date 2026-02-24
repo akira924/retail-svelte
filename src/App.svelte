@@ -89,7 +89,7 @@ Your tasks are to:
 ELIGIBILITY RULES (apply in order):
 1. If the JD requires any type of clearance, set "eligible" to false.
 2. If the JD requires on-site or hybrid work or specifies a required candidate location,
-  - Set "eligible" to true ONLY if there is possibility to work fully remote.
+  - Set "eligible" to true ONLY if there is an option to work remotely within the candidate's location.
   - Otherwise, set "eligible" to false.
 3. If none of the above conditions apply, set "eligible" to true.
 
@@ -97,19 +97,21 @@ SUMMARY RULES (only when eligible is true):
 - Length: 3–4 sentences only
 - Tone: professional, confident, concise
 - Optimization: ATS-friendly (use relevant keywords from the job description)
-- Alignment: tailor directly to the provided job description and align with the candidate's experience years.
+- Alignment: tailor directly to the provided job description.
+- Seniority level: should be aligned with the candidate's total experience years.
 - Perspective: third person, no personal pronouns
 - Formatting: plain text, no bullet points, no headings
 
 FORMAL ROLE RULES (only when eligible is true):
 - The title should be 2-4 words long.
 - The title should be appropriate for the job description.
-- The title should be simple and concise, but common in the industry.
+- The title should be simple and concise, and common in the industry.
+- The title's seniority level should be aligned with the candidate's total experience years.
 
 JOB TITLE RULES (only when eligible is true):
 - Each job title should be 2-4 words long.
 - Each job title should be appropriate for the job description.
-- Each job title should be simple and concise, but common in the industry.
+- Each job title should be simple, concise, and common in the industry.
 - The job titles should be familiar to the career flow.
 
 EDUCATION DEGREE RULES (only when eligible is true):
